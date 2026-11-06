@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pengajuan Cuti</title>
+<script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+<style>
+  :root{--bg:#f4f6fb;--card:#fff;--ink:#1f2a44;--muted:#6b7690;--line:#dde3f0;--brand:#0a4259;--brand2:#06303f;--accent:#f2b705;--ok:#1f9d55;--err:#d64545}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  header{background:linear-gradient(135deg,var(--brand),#0d5a79);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:4px solid var(--accent)}
+  header img{width:52px;height:52px;border-radius:10px;background:#fff;padding:3px;flex:none}
+  header h1{margin:0;font-size:18px;font-weight:600}
+  header p{margin:2px 0 0;font-size:12px;opacity:.85}
+  nav{display:flex;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
+  nav button{flex:1;padding:11px 0;border:0;background:none;font:inherit;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent}
+  nav button.on{color:var(--brand);border-bottom-color:var(--brand)}
+  main{padding:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:0 1px 3px rgba(20,40,90,.05)}
+  label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin:10px 0 4px}
+  label:first-child{margin-top:0}
+  input,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;color:var(--ink);background:#fff}
+  input:focus,textarea:focus{outline:2px solid #f7dc7a;border-color:var(--brand)}
+  input[readonly]{background:#eef2fa;color:var(--muted);font-weight:600}
+  textarea{min-height:76px;resize:vertical}
+  .row{display:flex;gap:10px}.row>div{flex:1;min-width:0}
+  .hint{font-size:12px;color:var(--brand2);margin-top:6px;min-height:16px}
+  .btn{width:100%;margin-top:14px;padding:11px;border:0;border-radius:9px;background:var(--brand);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+  .btn:hover{background:var(--brand2)}.btn:disabled{opacity:.6;cursor:wait}
+  .btn.ghost{background:#fff;color:var(--brand);border:1px solid var(--brand);margin-top:8px}
+  .toast{margin:0 14px;padding:10px 12px;border-radius:9px;font-size:13px;display:none}
+  .toast.ok{display:block;background:#e6f6ec;color:var(--ok);border:1px solid #bfe5cd;margin-top:12px}
+  .toast.err{display:block;background:#fdecec;color:var(--err);border:1px solid #f3c4c4;margin-top:12px}
+  .item{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:10px;background:#fff}
+  .item .top{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+  .item .no{color:var(--brand);white-space:nowrap}
+  .item .sub{color:var(--muted);font-size:12px;margin-top:2px}
+  .item .tgl{margin-top:6px;font-size:13px}
+  .item .ket{margin-top:4px;font-size:12px;color:var(--muted)}
+  .empty{text-align:center;color:var(--muted);padding:24px 0}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<header>
+  <img src="logo.png" alt="Logo">
+  <div>
+    <h1>Pengajuan Cuti</h1>
+    <p>Data tersimpan otomatis di tabel Excel (sheet "Pengajuan")</p>
+  </div>
+</header>
+<nav>
+  <button id="tabForm" class="on">Ajukan Cuti</button>
+  <button id="tabList">Riwayat</button>
+</nav>
+<div id="toast" class="toast"></div>
+
+<main>
+  <section id="viewForm">
+    <div class="card">
+      <label>No</label>
+      <input id="fNo" readonly value="…">
+      <label for="fNip">NIP</label>
+      <input id="fNip" inputmode="numeric" autocomplete="off" placeholder="Nomor induk pegawai">
+      <label for="fNama">Nama Pegawai</label>
+      <input id="fNama" autocomplete="off">
+      <label for="fJabatan">Jabatan</label>
+      <input id="fJabatan" autocomplete="off">
+      <div class="row">
+        <div><label for="fUnit">Unit Kerja</label><input id="fUnit" autocomplete="off"></div>
+        <div><label for="fKc">KC Induk</label><input id="fKc" autocomplete="off"></div>
+      </div>
+      <div class="row">
+        <div><label for="fMulai">Rencana Mulai</label><input id="fMulai" type="date"></div>
+        <div><label for="fSelesai">Rencana Selesai</label><input id="fSelesai" type="date"></div>
+      </div>
+      <div id="lama" class="hint"></div>
+      <label for="fKet">Keterangan Cuti</label>
+      <textarea id="fKet" placeholder="Contoh: Cuti tahunan, acara keluarga"></textarea>
+      <button id="btnKirim" class="btn">Ajukan Cuti</button>
+      <button id="btnReset" class="btn ghost" type="button">Kosongkan Form</button>
+    </div>
+  </section>
+
+  <section id="viewList" class="hide">
+    <input id="cari" placeholder="Cari NIP atau nama…">
+    <div id="list"></div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var SHEET = "Pengajuan", TABLE = "TabelCuti";
+  var HEAD = ["No","NIP","Nama Pegawai","Jabatan","Unit Kerja","KC Induk","Tanggal Mulai","Tanggal Selesai","Keterangan Cuti"];
+  var $ = function (id) { return document.getElementById(id); };
+  var allRows = [];
+
+  /* ---------- util ---------- */
+  function serial(iso) {            // "2026-11-06" -> nomor seri tanggal Excel
+    var p = iso.split("-").map(Number);
+    return Math.round(Date.UTC(p[0], p[1] - 1, p[2]) / 86400000) + 25569;
+  }
+  function fmtDate(v) {
+    if (typeof v === "number") {
+      var d = new Date(Math.round((v - 25569) * 86400000));
+      var dd = ("0" + d.getUTCDate()).slice(-2), mm = ("0" + (d.getUTCMonth() + 1)).slice(-2);
+      return dd + "/" + mm + "/" + d.getUTCFullYear();
+    }
+    return v || "";
+  }
+  function toast(msg, type) {
+    var t = $("toast");
+    t.className = "toast " + type;
+    t.textContent = msg;
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { t.className = "toast"; }, 5000);
+  }
+  function isEmptyRow(r) { return r.every(function (c) { return c === "" || c === null; }); }
+
+  /* ---------- sheet & tabel ---------- */
+  async function ensureTable(ctx) {
+    var sheet = ctx.workbook.worksheets.getItemOrNullObject(SHEET);
+    await ctx.sync();
+    if (sheet.isNullObject) { sheet = ctx.workbook.worksheets.add(SHEET); }
+    var table = ctx.workbook.tables.getItemOrNullObject(TABLE);
+    await ctx.sync();
+    if (table.isNullObject) {
+      var head = sheet.getRange("A1:I1");
+      head.values = [HEAD];
+      table = sheet.tables.add(head, true);
+      table.name = TABLE;
+      table.style = "TableStyleMedium2";
+      sheet.getRange("B2:B10000").numberFormat = "@";
+      sheet.getRange("G2:H10000").numberFormat = "dd/mm/yyyy";
+      var w = {A:50,B:110,C:170,D:130,E:130,F:120,G:105,H:105,I:240};
+      Object.keys(w).forEach(function (c) { sheet.getRange(c + ":" + c).format.columnWidth = w[c]; });
+      await ctx.sync();
+    }
+    return table;
+  }
+
+  async function readAll() {
+    var out = [];
+    await Excel.run(async function (ctx) {
+      var table = await ensureTable(ctx);
+      var body = table.getDataBodyRange();
+      body.load("values");
+      await ctx.sync();
+      out = body.values.filter(function (r) { return !isEmptyRow(r); });
+    });
+    return out;
+  }
+
+  /* ---------- tampilan ---------- */
+  async function refresh() {
+    try {
+      allRows = await readAll();
+      var max = 0;
+      allRows.forEach(function (r) { var n = Number(r[0]); if (n > max) max = n; });
+      $("fNo").value = String(max + 1);
+      renderList();
+    } catch (e) {
+      $("fNo").value = "?";
+      toast("Gagal membaca tabel: " + (e.message || e), "err");
+    }
+  }
+
+  function renderList() {
+    var q = $("cari").value.trim().toLowerCase();
+    var box = $("list");
+    box.innerHTML = "";
+    var rows = allRows.filter(function (r) {
+      return !q || String(r[1]).toLowerCase().indexOf(q) > -1 || String(r[2]).toLowerCase().indexOf(q) > -1;
+    }).slice().reverse().slice(0, 50);
+    if (!rows.length) {
+      var e = document.createElement("div"); e.className = "empty";
+      e.textContent = allRows.length ? "Tidak ada hasil." : "Belum ada pengajuan.";
+      box.appendChild(e); return;
+    }
+    rows.forEach(function (r) {
+      var it = document.createElement("div"); it.className = "item";
+      var top = document.createElement("div"); top.className = "top";
+      var nm = document.createElement("span"); nm.textContent = r[2];
+      var no = document.createElement("span"); no.className = "no"; no.textContent = "No " + r[0];
+      top.appendChild(nm); top.appendChild(no);
+      var sub = document.createElement("div"); sub.className = "sub";
+      sub.textContent = r[1] + " • " + r[3] + " • " + r[4] + " • " + r[5];
+      var tg = document.createElement("div"); tg.className = "tgl";
+      tg.textContent = fmtDate(r[6]) + " s/d " + fmtDate(r[7]);
+      var kt = document.createElement("div"); kt.className = "ket"; kt.textContent = r[8];
+      it.appendChild(top); it.appendChild(sub); it.appendChild(tg); it.appendChild(kt);
+      box.appendChild(it);
+    });
+  }
+
+  function lama() {
+    var a = $("fMulai").value, b = $("fSelesai").value;
+    if (!a || !b) { $("lama").textContent = ""; return; }
+    var n = serial(b) - serial(a) + 1;
+    $("lama").textContent = n > 0 ? "Lama: " + n + " hari kalender" : "";
+  }
+
+  function showTab(which) {
+    var f = which === "form";
+    $("viewForm").className = f ? "" : "hide";
+    $("viewList").className = f ? "hide" : "";
+    $("tabForm").className = f ? "on" : "";
+    $("tabList").className = f ? "" : "on";
+    if (!f) refresh();
+  }
+
+  function clearForm() {
+    ["fNip","fNama","fJabatan","fUnit","fKc","fMulai","fSelesai","fKet"].forEach(function (id) { $(id).value = ""; });
+    lama();
+  }
+
+  /* ---------- simpan ---------- */
+  async function kirim() {
+    var v = {
+      nip: $("fNip").value.trim(), nama: $("fNama").value.trim(), jabatan: $("fJabatan").value.trim(),
+      unit: $("fUnit").value.trim(), kc: $("fKc").value.trim(),
+      mulai: $("fMulai").value, selesai: $("fSelesai").value, ket: $("fKet").value.trim()
+    };
+    if (!v.nip || !v.nama || !v.jabatan || !v.unit || !v.kc || !v.mulai || !v.selesai || !v.ket) {
+      toast("Semua kolom wajib diisi.", "err"); return;
+    }
+    if (serial(v.selesai) < serial(v.mulai)) {
+      toast("Tanggal selesai tidak boleh sebelum tanggal mulai.", "err"); return;
+    }
+    var btn = $("btnKirim"); btn.disabled = true; btn.textContent = "Menyimpan…";
+    try {
+      var nomor = 0;
+      await Excel.run(async function (ctx) {
+        var table = await ensureTable(ctx);
+        var body = table.getDataBodyRange();
+        body.load("values");
+        await ctx.sync();
+        var vals = body.values, max = 0;
+        vals.forEach(function (r) { var n = Number(r[0]); if (n > max) max = n; });
+        nomor = max + 1;
+        var row = [nomor, v.nip, v.nama, v.jabatan, v.unit, v.kc, serial(v.mulai), serial(v.selesai), v.ket];
+        var rng;
+        if (vals.length === 1 && isEmptyRow(vals[0])) {
+          rng = body.getRow(0);                       // pakai baris kosong bawaan tabel
+        } else {
+          var added = table.rows.add(null, [["","","","","","","","",""]]);
+          rng = added.getRange();
+        }
+        rng.getCell(0, 1).numberFormat = [["@"]];     // NIP sebagai teks (angka 0 di depan aman)
+        rng.getCell(0, 6).numberFormat = [["dd/mm/yyyy"]];
+        rng.getCell(0, 7).numberFormat = [["dd/mm/yyyy"]];
+        rng.values = [row];
+        await ctx.sync();
+      });
+      toast("Pengajuan cuti No " + nomor + " berhasil disimpan.", "ok");
+      clearForm();
+      await refresh();
+    } catch (e) {
+      toast("Gagal menyimpan: " + (e.message || e), "err");
+    } finally {
+      btn.disabled = false; btn.textContent = "Ajukan Cuti";
+    }
+  }
+
+  /* ---------- mulai ---------- */
+  Office.onReady(function (info) {
+    if (info.host !== Office.HostType.Excel) {
+      toast("Halaman ini harus dibuka sebagai add-in di dalam Excel.", "err"); return;
+    }
+    $("tabForm").onclick = function () { showTab("form"); };
+    $("tabList").onclick = function () { showTab("list"); };
+    $("btnKirim").onclick = kirim;
+    $("btnReset").onclick = clearForm;
+    $("cari").oninput = renderList;
+    $("fMulai").onchange = lama;
+    $("fSelesai").onchange = lama;
+    refresh();
+  });
+})();
+</script>
+</body>
+</html>
